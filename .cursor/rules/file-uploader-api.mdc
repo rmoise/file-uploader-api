@@ -1,0 +1,451 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# File Uploader API - Cursor Rules & Architecture
+
+## 🎯 **PROJECT OVERVIEW**
+
+Node.js/Express backend API with S3-compatible storage integration to complement the existing React file uploader, completing the full-stack solution for Charles's challenge.
+
+## ⏱️ **TIME CONSTRAINTS**
+
+- **Target**: 2-3 hours maximum
+- **Payment**: $30 for time investment
+- **Goal**: Seamless integration with existing frontend queue system
+
+## 📋 **TECHNICAL STACK**
+
+### **Core Technologies**
+
+- **Runtime**: Node.js 18+
+- **Framework**: Express.js
+- **Storage**: S3-Compatible (AWS S3/DO Spaces/Backblaze)
+- **File Handling**: Multer middleware + @aws-sdk/lib-storage Upload
+- **AWS SDK**: @aws-sdk/client-s3 v3, @aws-sdk/lib-storage (for multipart uploads)
+- **Security**: Helmet, CORS
+- **Environment**: dotenv
+- **Development**: nodemon
+
+### **Architecture Pattern**
+
+- **MVC Structure**: Routes → Controllers → Services → Storage
+- **Middleware Chain**: CORS → Helmet → Morgan → Multer → Upload Route
+- **Error Handling**: Centralized error middleware with retry-friendly responses
+- **Configuration**: Environment-based config files
+- **S3 Optimization**: Connection pooling, streaming uploads, progress tracking
+
+## 🏗️ **PROJECT STRUCTURE**
+
+```
+src/
+├── app.js              # Express app configuration
+├── server.js           # Server entry point
+├── config/
+│   ├── s3Config.js     # S3 client configuration with connection pooling
+│   └── database.js     # Future DB config (optional)
+├── middleware/
+│   ├── cors.js         # CORS configuration
+│   ├── upload.js       # Multer configuration
+│   └── errorHandler.js # Global error handling
+├── routes/
+│   ├── upload.js       # File upload endpoints
+│   └── health.js       # Health check endpoint
+├── services/
+│   ├── s3Service.js    # S3 operations with @aws-sdk/lib-storage
+│   └── uploadService.js # Upload business logic
+└── utils/
+    ├── fileValidator.js # File validation logic
+    └── logger.js       # Logging utilities
+```
+
+## 🎯 **CORE FEATURES**
+
+### **File Upload API (Enhanced)**
+
+```javascript
+POST /api/upload
+- Multipart file upload with streaming to S3
+- Progress tracking via @aws-sdk/lib-storage Upload class
+- Concurrent upload limiting at S3 level (maxSockets: 50)
+- File validation (size, type, security)
+- S3 upload with unique file naming
+- Progress callbacks for frontend integration
+- Retry-friendly error responses
+```
+
+### **Queue Integration**
+
+- **Compatible with frontend retry logic**
+- **Error responses that trigger frontend retries**
+- **Progress tracking for concurrent uploads**
+- **File metadata and status tracking**
+
+### **S3 Integration (Optimized)**
+
+- **AWS SDK v3** with @aws-sdk/lib-storage for efficient multipart uploads
+- **Connection pooling** with NodeHttpHandler and maxSockets configuration
+- **Streaming uploads** to prevent memory exhaustion
+- **Progress tracking** via httpUploadProgress events
+- **Error handling** with proper retry semantics
+- **Multiple provider support** (AWS S3, DO Spaces, Backblaze)
+
+### **Performance Optimizations**
+
+- **Connection reuse** with httpsAgent keepAlive
+- **Socket pooling** with configurable maxSockets (50-100)
+- **Streaming architecture** to handle large files efficiently
+- **Concurrent upload management** at both Express and S3 level
+- **Memory-efficient** file processing without full buffering
+
+## 🔧 **AWS SDK V3 IMPLEMENTATION PATTERNS**
+
+### **S3 Client Configuration**
+
+```javascript
+import { S3 } from "@aws-sdk/client-s3";
+import { NodeHttpHandler } from "@smithy/node-http-handler";
+import { Upload } from "@aws-sdk/lib-storage";
+
+const s3Client = new S3({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+  requestHandler: new NodeHttpHandler({
+    httpsAgent: new https.Agent({
+      keepAlive: true,
+      maxSockets: 50, // Match concurrent upload expectations
+    }),
+    requestTimeout: 30000,
+    connectionTimeout: 6000,
+  }),
+});
+```
+
+### **Streaming Upload with Progress**
+
+```javascript
+const uploadToS3 = async (fileStream, key, onProgress) => {
+  const upload = new Upload({
+    client: s3Client,
+    params: {
+      Bucket: process.env.S3_BUCKET,
+      Key: key,
+      Body: fileStream,
+      ContentType: "application/octet-stream",
+    },
+    queueSize: 4, // Concurrent part uploads
+    partSize: 1024 * 1024 * 5, // 5MB parts
+    leavePartsOnError: false,
+  });
+
+  upload.on("httpUploadProgress", (progress) => {
+    onProgress && onProgress(progress);
+  });
+
+  return await upload.done();
+};
+```
+
+### **Error Handling Pattern**
+
+```javascript
+try {
+  const result = await uploadToS3(fileStream, key, onProgress);
+  return { success: true, data: result };
+} catch (error) {
+  // Classify errors for retry logic
+  const isRetryable =
+    error.name !== "ValidationException" && error.name !== "AccessDenied";
+
+  return {
+    success: false,
+    error: {
+      code: error.name || "UPLOAD_FAILED",
+      message: error.message,
+      retryable: isRetryable,
+    },
+  };
+}
+```
+
+## 📝 **API SPECIFICATIONS (Enhanced)**
+
+### **Upload Endpoint**
+
+```javascript
+POST /api/upload
+Content-Type: multipart/form-data
+
+Request:
+- file: File (required, max 10MB)
+- metadata: JSON string (optional)
+
+Response Success (200):
+{
+  "success": true,
+  "data": {
+    "fileId": "uuid-v4",
+    "fileName": "original-name.ext",
+    "fileUrl": "https://bucket.s3.region.amazonaws.com/path/to/file",
+    "fileSize": 1024000,
+    "uploadedAt": "2024-01-01T00:00:00.000Z",
+    "etag": "\"d41d8cd98f00b204e9800998ecf8427e\""
+  }
+}
+
+Response Error (400/500):
+{
+  "success": false,
+  "error": {
+    "code": "UPLOAD_FAILED",
+    "message": "File upload failed",
+    "retryable": true,
+    "details": "Specific error information for debugging"
+  }
+}
+
+Response Progress (SSE - Optional):
+{
+  "loaded": 2048000,
+  "total": 5120000,
+  "progress": 40
+}
+```
+
+### **Health Check**
+
+```javascript
+GET /api/health
+
+Response (200):
+{
+  "status": "healthy",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "services": {
+    "s3": "connected",
+    "server": "running"
+  },
+  "performance": {
+    "connectionPool": "50/50 sockets",
+    "memoryUsage": "45MB",
+    "uptime": "1h 23m"
+  }
+}
+```
+
+## 🔒 **SECURITY REQUIREMENTS (Enhanced)**
+
+### **File Validation**
+
+- **File size limits**: 10MB max per file (configurable)
+- **MIME type validation**: Whitelist approach with file-type library
+- **File extension checking**: Double validation (extension + content)
+- **Content validation**: Magic number checking to prevent executable uploads
+- **Stream validation**: Validate during upload, not after buffering
+
+### **Request Security**
+
+- **CORS**: Restrict to frontend domain
+- **Rate limiting**: Prevent abuse (future)
+- **Authentication**: Token-based (future)
+- **Input sanitization**: File names and metadata
+
+### **S3 Security**
+
+- **IAM permissions**: Least privilege access with specific bucket/path restrictions
+- **Bucket policies**: Private bucket with public read for specific patterns
+- **Server-side encryption**: AES-256 or KMS encryption
+- **Access patterns**: Time-limited presigned URLs for downloads
+- **CORS configuration**: Strict origin policies
+
+## 🌍 **ENVIRONMENT CONFIGURATION (Enhanced)**
+
+### **Required Environment Variables**
+
+```bash
+# Server Configuration
+PORT=3001
+NODE_ENV=development
+
+# S3 Configuration (Primary - AWS)
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=file-uploader-bucket
+
+# S3 Configuration (Alternative - Digital Ocean Spaces)
+DO_SPACES_KEY=your_spaces_key
+DO_SPACES_SECRET=your_spaces_secret
+DO_SPACES_ENDPOINT=nyc3.digitaloceanspaces.com
+DO_SPACES_BUCKET=file-uploader-spaces
+DO_SPACES_REGION=nyc3
+
+# CORS Configuration
+FRONTEND_URL=https://file-uploader-challenge.vercel.app
+CORS_ORIGINS=http://localhost:5173,https://file-uploader-challenge.vercel.app
+
+# Upload Configuration
+MAX_FILE_SIZE=10485760
+MAX_CONCURRENT_UPLOADS=3
+ALLOWED_MIME_TYPES=image/*,application/pdf,text/*,video/mp4,audio/mpeg
+
+# Performance Configuration
+S3_MAX_SOCKETS=50
+S3_REQUEST_TIMEOUT=30000
+S3_CONNECTION_TIMEOUT=6000
+```
+
+## 🔄 **FRONTEND INTEGRATION (Updated)**
+
+### **Enhanced Upload Service**
+
+```javascript
+// src/services/uploadService.ts (frontend)
+const uploadFile = async (
+  file: File,
+  onProgress: (progress: number) => void
+): Promise<any> => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const progress = Math.round((event.loaded / event.total) * 100);
+        onProgress(progress);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        try {
+          const response = JSON.parse(xhr.responseText);
+          resolve(response);
+        } catch (e) {
+          reject(new Error("Invalid response format"));
+        }
+      } else {
+        try {
+          const errorResponse = JSON.parse(xhr.responseText);
+          const error = new Error(
+            errorResponse.error?.message || "Upload failed"
+          );
+          error.retryable = errorResponse.error?.retryable || false;
+          reject(error);
+        } catch (e) {
+          reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+        }
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Network error"));
+    xhr.ontimeout = () => reject(new Error("Upload timeout"));
+
+    xhr.timeout = 60000; // 60 second timeout
+    xhr.open("POST", `${process.env.REACT_APP_API_URL}/api/upload`);
+    xhr.send(formData);
+  });
+};
+```
+
+## 📊 **PERFORMANCE MONITORING**
+
+### **Metrics to Track**
+
+- **Upload throughput**: Files per second, bytes per second
+- **Error rates**: Failed uploads, retry success rates
+- **Response times**: Average, p95, p99 upload times
+- **Resource usage**: Memory, CPU, connection pool utilization
+- **S3 metrics**: Request counts, error rates, costs
+
+### **Logging Strategy**
+
+```javascript
+// Structured logging with upload context
+{
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "level": "info",
+  "event": "upload_progress",
+  "fileId": "uuid-v4",
+  "fileName": "example.jpg",
+  "loaded": 2048000,
+  "total": 5120000,
+  "progress": 40,
+  "duration": 1500,
+  "requestId": "req-123"
+}
+```
+
+## 🚀 **DEPLOYMENT STRATEGY (Enhanced)**
+
+### **Platform: Railway/Heroku with Environment Variables**
+
+```bash
+# Railway deployment with environment variables
+railway login
+railway init
+railway add
+railway variables:set AWS_ACCESS_KEY_ID=xxx
+railway variables:set AWS_SECRET_ACCESS_KEY=xxx
+railway variables:set AWS_S3_BUCKET=file-uploader-bucket
+railway variables:set FRONTEND_URL=https://file-uploader-challenge.vercel.app
+railway deploy
+```
+
+### **Database Considerations**
+
+- **Phase 1**: No database (file metadata in response only)
+- **Phase 2**: Optional SQLite for upload history
+- **Production**: PostgreSQL for file metadata and user management
+
+## �� **SUCCESS CRITERIA (Enhanced)**
+
+### **Functional Requirements**
+
+- [ ] Streaming file upload with progress tracking
+- [ ] S3 integration with efficient multipart uploads
+- [ ] Frontend integration with retry-friendly error responses
+- [ ] Connection pooling and performance optimization
+- [ ] File validation with security measures
+- [ ] CORS configuration for cross-origin requests
+
+### **Performance Requirements**
+
+- [ ] Handle 10+ concurrent uploads efficiently
+- [ ] Support files up to 10MB without memory issues
+- [ ] Progress reporting within 100ms accuracy
+- [ ] Connection reuse to minimize S3 API costs
+- [ ] Error recovery with appropriate retry semantics
+
+### **Security Requirements**
+
+- [ ] File type and content validation
+- [ ] S3 bucket security with least privilege access
+- [ ] Input sanitization and XSS prevention
+- [ ] Rate limiting and abuse prevention measures
+
+## ⚡ **DEVELOPMENT RULES (Enhanced)**
+
+### **Code Quality**
+
+- **Modern JavaScript**: ES2020+ with async/await patterns
+- **Error handling**: Comprehensive try-catch with error classification
+- **Streaming**: Use Node.js streams for memory efficiency
+- **Testing**: Unit tests for validation and S3 integration
+- **Documentation**: JSDoc comments for complex functions
+
+### **S3 Best Practices**
+
+- **Connection pooling**: Reuse S3 client instances
+- **Multipart uploads**: Use @aws-sdk/lib-storage for files > 5MB
+- **Progress tracking**: Real-time progress updates
+- **Error classification**: Distinguish retryable vs permanent errors
+- **Resource cleanup**: Proper stream and connection management
+
+Remember: **FUNCTIONALITY > PERFECTION** - Focus on working integration with optimized S3 patterns within the 2-3 hour timeframe.
