@@ -179,13 +179,7 @@ const getErrorStatusCode = (error, classification) => {
  */
 const errorHandler = (err, req, res, next) => {
   // Create child logger with request context
-  const requestLogger = logger.child({
-    requestId: req.requestId,
-    method: req.method,
-    url: req.originalUrl,
-    userAgent: req.get('User-Agent'),
-    ip: req.ip
-  });
+  const requestLogger = createLogger();
 
   // Classify the error for retry logic
   const classification = classifyError(err);

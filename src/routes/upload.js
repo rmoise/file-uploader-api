@@ -4,12 +4,15 @@
  */
 
 const express = require('express');
-const { uploadMiddleware } = require('../middleware/upload');
+const { createUploadMiddleware } = require('../middleware/upload');
 const { processFileUpload, processMultipleFileUploads } = require('../services/uploadService');
 const { createLogger } = require('../utils/logger');
 
 // Create router instance - Context7 pattern
 const router = express.Router();
+
+// Create upload middleware instance
+const uploadMiddleware = createUploadMiddleware('file');
 
 // Logger for routes
 const logger = createLogger();
@@ -19,10 +22,10 @@ const logger = createLogger();
  * POST /api/upload
  * Following Context7 Express async route handler patterns
  */
-router.post('/', uploadMiddleware, async (req, res, next) => {
+router.post('/', ...uploadMiddleware, async (req, res, next) => {
   // Generate request ID for tracking (Context7 pattern)
   const requestId = req.requestId || 'upload-' + Date.now();
-  const childLogger = logger.child({ requestId, route: 'upload' });
+  const childLogger = createLogger();
 
   try {
     childLogger.info('upload_started', {
@@ -89,9 +92,9 @@ router.post('/', uploadMiddleware, async (req, res, next) => {
  * POST /api/upload/multiple
  * Following Context7 Express patterns for array handling
  */
-router.post('/multiple', uploadMiddleware, async (req, res, next) => {
+router.post('/multiple', ...uploadMiddleware, async (req, res, next) => {
   const requestId = req.requestId || 'multi-upload-' + Date.now();
-  const childLogger = logger.child({ requestId, route: 'upload/multiple' });
+  const childLogger = createLogger();
 
   try {
     childLogger.info('multiple_upload_started', {
@@ -158,7 +161,7 @@ router.post('/multiple', uploadMiddleware, async (req, res, next) => {
  */
 router.get('/progress/:uploadId', async (req, res, next) => {
   const { uploadId } = req.params;
-  const childLogger = logger.child({ uploadId, route: 'upload/progress' });
+  const childLogger = createLogger();
 
   try {
     // In production, this would query a progress tracking system
@@ -189,33 +192,81 @@ router.get('/progress/:uploadId', async (req, res, next) => {
 });
 
 /**
- * Cancel Upload Endpoint
- * DELETE /api/upload/:uploadId
- * Following Context7 Express DELETE patterns
+ * Delete File Endpoint
+ * DELETE /api/upload/delete/:s3Key
+ * Deletes file from S3 bucket and any local metadata
  */
-router.delete('/:uploadId', async (req, res, next) => {
-  const { uploadId } = req.params;
-  const childLogger = logger.child({ uploadId, route: 'upload/cancel' });
+router.delete('/delete/*', async (req, res, next) => {
+  const s3Key = req.params[0]; // Get the full path after /delete/
+  const childLogger = createLogger();
+  const requestId = 'delete-' + Date.now();
 
   try {
-    childLogger.info('upload_cancellation_requested', { uploadId });
+    childLogger.info('file_deletion_requested', { s3Key, requestId });
 
-    // In production, this would cancel ongoing upload and cleanup
-    res.status(200).json({
-      success: true,
-      data: {
-        uploadId,
-        status: 'cancelled',
-        message: 'Upload cancelled successfully'
-      },
-      meta: {
-        timestamp: new Date().toISOString()
-      }
-    });
+    // Validate s3Key parameter
+    if (!s3Key || s3Key.trim() === '') {
+      const error = new Error('S3 key parameter is required');
+      error.status = 400;
+      error.code = 'MISSING_S3_KEY';
+      return next(error);
+    }
+
+    // Delete file from S3 using the upload service
+    const { deleteUploadedFile } = require('../services/uploadService');
+    const deleteResult = await deleteUploadedFile(s3Key, requestId);
+
+    if (deleteResult.success) {
+      childLogger.info('file_deletion_completed', {
+        s3Key,
+        requestId,
+        message: deleteResult.message || 'File deleted successfully'
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          s3Key,
+          status: 'deleted',
+          message: deleteResult.message || 'File deleted from S3 successfully'
+        },
+        meta: {
+          requestId,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } else {
+      childLogger.error('file_deletion_failed', {
+        s3Key,
+        requestId,
+        error: deleteResult.error
+      });
+
+      res.status(400).json({
+        success: false,
+        error: {
+          code: deleteResult.error.code,
+          message: deleteResult.error.message,
+          s3Key
+        },
+        meta: {
+          requestId,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
 
   } catch (error) {
-    error.uploadId = uploadId;
-    error.route = 'upload/cancel';
+    error.s3Key = s3Key;
+    error.requestId = requestId;
+    error.route = 'upload/delete';
+
+    childLogger.error('file_deletion_error', {
+      s3Key,
+      requestId,
+      error: error.message
+    });
+
     next(error);
   }
 });

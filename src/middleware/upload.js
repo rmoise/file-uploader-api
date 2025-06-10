@@ -4,7 +4,7 @@
  */
 
 const multer = require('multer');
-const { validateFile, validateFileExtension } = require('../utils/fileValidator');
+const { validateUploadedFile, validateFileMetadata } = require('../utils/fileValidator');
 const { createLogger } = require('../utils/logger');
 
 // Logger for this middleware
@@ -29,15 +29,9 @@ const storage = multer.memoryStorage();
  * Following Context7 security patterns
  */
 const fileFilter = (req, file, cb) => {
-  const requestLogger = logger.child({
-    requestId: req.requestId,
-    fileName: file.originalname,
-    mimeType: file.mimetype,
-    fieldName: file.fieldname
-  });
+  const requestLogger = createLogger();
 
-  requestLogger.info('file_filter_start', {
-    event: 'upload_file_filter',
+  requestLogger.info('file_filter_start', `Starting file filter for: ${file.originalname}`, {
     originalName: file.originalname,
     mimeType: file.mimetype,
     encoding: file.encoding
@@ -45,17 +39,17 @@ const fileFilter = (req, file, cb) => {
 
   try {
     // Basic file validation using our utility
-    const validation = validateFile(file);
+    const validation = validateFileMetadata(file);
 
     if (!validation.isValid) {
-      requestLogger.warn('file_filter_failed', {
-        event: 'upload_validation_failed',
-        error: validation.error,
+      const errorMessage = validation.errors.join(', ');
+      requestLogger.warn('file_filter_failed', `File validation failed: ${errorMessage}`, {
+        errors: validation.errors,
         fileName: file.originalname
       });
 
       // Context7 pattern: Create descriptive error for multer
-      const error = new Error(validation.error);
+      const error = new Error(errorMessage);
       error.code = 'INVALID_FILE';
       error.field = file.fieldname;
       return cb(error, false);
@@ -63,8 +57,7 @@ const fileFilter = (req, file, cb) => {
 
     // MIME type validation
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-      requestLogger.warn('file_filter_mime_rejected', {
-        event: 'upload_mime_rejected',
+      requestLogger.warn('file_filter_mime_rejected', `MIME type rejected: ${file.mimetype}`, {
         mimeType: file.mimetype,
         allowedTypes: ALLOWED_MIME_TYPES,
         fileName: file.originalname
@@ -76,24 +69,9 @@ const fileFilter = (req, file, cb) => {
       return cb(error, false);
     }
 
-    // File extension validation
-    const extensionValidation = validateFileExtension(file.originalname, file.mimetype);
+    // Extension validation is handled in validateFileMetadata above
 
-    if (!extensionValidation.isValid) {
-      requestLogger.warn('file_filter_extension_rejected', {
-        event: 'upload_extension_rejected',
-        error: extensionValidation.error,
-        fileName: file.originalname
-      });
-
-      const error = new Error(extensionValidation.error);
-      error.code = 'INVALID_FILE_EXTENSION';
-      error.field = file.fieldname;
-      return cb(error, false);
-    }
-
-    requestLogger.info('file_filter_accepted', {
-      event: 'upload_file_accepted',
+    requestLogger.info('file_filter_accepted', `File accepted: ${file.originalname}`, {
       fileName: file.originalname,
       mimeType: file.mimetype
     });
@@ -102,8 +80,7 @@ const fileFilter = (req, file, cb) => {
     cb(null, true);
 
   } catch (error) {
-    requestLogger.error('file_filter_error', {
-      event: 'upload_filter_error',
+    requestLogger.error('file_filter_error', `File filter error: ${error.message}`, {
       error: error.message,
       stack: error.stack,
       fileName: file.originalname
@@ -135,7 +112,7 @@ const upload = multer({
  * Following Context7 error handling patterns with proper error classification
  */
 const handleMulterError = (error, req, res, next) => {
-  const requestLogger = logger.child({ requestId: req.requestId });
+  const requestLogger = createLogger();
 
   // Multer-specific error handling
   if (error instanceof multer.MulterError) {
@@ -184,12 +161,10 @@ const handleMulterError = (error, req, res, next) => {
         break;
     }
 
-    requestLogger.warn('multer_error', {
-      event: 'upload_multer_error',
+    requestLogger.warn('multer_error', `Multer error: ${error.message}`, {
       multerCode: error.code,
       errorCode,
       field: error.field,
-      message: error.message,
       retryable
     });
 
@@ -206,11 +181,9 @@ const handleMulterError = (error, req, res, next) => {
 
   // Custom file validation errors
   if (error.code && ['INVALID_FILE', 'INVALID_FILE_TYPE', 'INVALID_FILE_EXTENSION'].includes(error.code)) {
-    requestLogger.warn('file_validation_error', {
-      event: 'upload_validation_error',
+    requestLogger.warn('file_validation_error', `File validation error: ${error.message}`, {
       errorCode: error.code,
-      field: error.field,
-      message: error.message
+      field: error.field
     });
 
     return res.status(400).json({
@@ -225,8 +198,7 @@ const handleMulterError = (error, req, res, next) => {
   }
 
   // Other errors - pass to general error handler
-  requestLogger.error('upload_middleware_error', {
-    event: 'upload_unexpected_error',
+  requestLogger.error('upload_middleware_error', `Unexpected upload error: ${error.message}`, {
     error: error.message,
     stack: error.stack,
     code: error.code
@@ -255,11 +227,10 @@ const createUploadMiddleware = (fieldName = 'file') => {
 
     // Success handler - add file info to request
     (req, res, next) => {
-      const requestLogger = logger.child({ requestId: req.requestId });
+      const requestLogger = createLogger();
 
       if (!req.file) {
-        requestLogger.warn('no_file_uploaded', {
-          event: 'upload_no_file',
+        requestLogger.warn('no_file_uploaded', `No file provided in field '${fieldName}'`, {
           fieldName
         });
 
@@ -276,8 +247,7 @@ const createUploadMiddleware = (fieldName = 'file') => {
       // Add upload timing information
       req.uploadProcessTime = Date.now() - req.uploadStartTime;
 
-      requestLogger.info('file_uploaded_to_memory', {
-        event: 'upload_memory_success',
+      requestLogger.info('file_uploaded_to_memory', `File uploaded to memory: ${req.file.originalname}`, {
         fileName: req.file.originalname,
         size: req.file.size,
         mimeType: req.file.mimetype,

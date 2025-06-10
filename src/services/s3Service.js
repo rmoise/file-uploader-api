@@ -40,7 +40,7 @@ const uploadFileToS3 = async (fileBuffer, originalFilename, metadata = {}, onPro
 
     requestLogger.uploadStart(originalFilename, fileBuffer.length, {
       s3Key,
-      bucket: S3_CONFIG.bucket,
+      bucket: S3_CONFIG.BUCKET,
       ...metadata
     });
 
@@ -48,7 +48,7 @@ const uploadFileToS3 = async (fileBuffer, originalFilename, metadata = {}, onPro
     const upload = new Upload({
       client: s3Client,
       params: {
-        Bucket: S3_CONFIG.bucket,
+        Bucket: S3_CONFIG.BUCKET,
         Key: s3Key,
         Body: fileBuffer,
         ContentType: metadata.contentType || 'application/octet-stream',
@@ -92,16 +92,16 @@ const uploadFileToS3 = async (fileBuffer, originalFilename, metadata = {}, onPro
     const duration = Date.now() - startTime;
 
     // Generate public URL
-    const fileUrl = `https://${S3_CONFIG.bucket}.s3.${S3_CONFIG.region}.amazonaws.com/${s3Key}`;
+    const fileUrl = `https://${S3_CONFIG.BUCKET}.s3.${S3_CONFIG.REGION}.amazonaws.com/${s3Key}`;
 
     requestLogger.uploadComplete(originalFilename, fileUrl, duration, {
       s3Key,
       etag: result.ETag,
-      bucket: S3_CONFIG.bucket
+      bucket: S3_CONFIG.BUCKET
     });
 
     requestLogger.s3Operation('upload', true, duration, {
-      bucket: S3_CONFIG.bucket,
+      bucket: S3_CONFIG.BUCKET,
       key: s3Key,
       fileSize: fileBuffer.length
     });
@@ -114,7 +114,7 @@ const uploadFileToS3 = async (fileBuffer, originalFilename, metadata = {}, onPro
         fileUrl,
         s3Key,
         fileSize: fileBuffer.length,
-        bucket: S3_CONFIG.bucket,
+        bucket: S3_CONFIG.BUCKET,
         etag: result.ETag,
         uploadedAt: new Date().toISOString(),
         contentType: metadata.contentType
@@ -126,7 +126,7 @@ const uploadFileToS3 = async (fileBuffer, originalFilename, metadata = {}, onPro
 
     requestLogger.uploadError(originalFilename, error, {
       duration,
-      bucket: S3_CONFIG.bucket
+      bucket: S3_CONFIG.BUCKET
     });
 
     requestLogger.s3Operation('upload', false, duration, {
@@ -162,7 +162,7 @@ const uploadStreamToS3 = async (stream, originalFilename, fileSize, metadata = {
 
     requestLogger.uploadStart(originalFilename, fileSize, {
       s3Key,
-      bucket: S3_CONFIG.bucket,
+      bucket: S3_CONFIG.BUCKET,
       uploadType: 'stream',
       ...metadata
     });
@@ -171,7 +171,7 @@ const uploadStreamToS3 = async (stream, originalFilename, fileSize, metadata = {
     const upload = new Upload({
       client: s3Client,
       params: {
-        Bucket: S3_CONFIG.bucket,
+        Bucket: S3_CONFIG.BUCKET,
         Key: s3Key,
         Body: stream,
         ContentType: metadata.contentType || 'application/octet-stream',
@@ -213,7 +213,7 @@ const uploadStreamToS3 = async (stream, originalFilename, fileSize, metadata = {
 
     const result = await upload.done();
     const duration = Date.now() - startTime;
-    const fileUrl = `https://${S3_CONFIG.bucket}.s3.${S3_CONFIG.region}.amazonaws.com/${s3Key}`;
+    const fileUrl = `https://${S3_CONFIG.BUCKET}.s3.${S3_CONFIG.REGION}.amazonaws.com/${s3Key}`;
 
     requestLogger.uploadComplete(originalFilename, fileUrl, duration, {
       s3Key,
@@ -229,7 +229,7 @@ const uploadStreamToS3 = async (stream, originalFilename, fileSize, metadata = {
         fileUrl,
         s3Key,
         fileSize,
-        bucket: S3_CONFIG.bucket,
+        bucket: S3_CONFIG.BUCKET,
         etag: result.ETag,
         uploadedAt: new Date().toISOString(),
         contentType: metadata.contentType
@@ -272,13 +272,13 @@ const checkFileExists = async (s3Key) => {
 
   try {
     await s3Client.send(new HeadObjectCommand({
-      Bucket: S3_CONFIG.bucket,
+      Bucket: S3_CONFIG.BUCKET,
       Key: s3Key
     }));
 
     const duration = Date.now() - startTime;
     requestLogger.s3Operation('head', true, duration, {
-      bucket: S3_CONFIG.bucket,
+      bucket: S3_CONFIG.BUCKET,
       key: s3Key
     });
 
@@ -288,7 +288,7 @@ const checkFileExists = async (s3Key) => {
 
     if (error.name === 'NotFound') {
       requestLogger.s3Operation('head', true, duration, {
-        bucket: S3_CONFIG.bucket,
+        bucket: S3_CONFIG.BUCKET,
         key: s3Key,
         result: 'not_found'
       });
@@ -296,7 +296,7 @@ const checkFileExists = async (s3Key) => {
     }
 
     requestLogger.s3Operation('head', false, duration, {
-      bucket: S3_CONFIG.bucket,
+      bucket: S3_CONFIG.BUCKET,
       key: s3Key,
       error: error.message
     });
@@ -314,13 +314,13 @@ const deleteFileFromS3 = async (s3Key) => {
 
   try {
     await s3Client.send(new DeleteObjectCommand({
-      Bucket: S3_CONFIG.bucket,
+      Bucket: S3_CONFIG.BUCKET,
       Key: s3Key
     }));
 
     const duration = Date.now() - startTime;
     requestLogger.s3Operation('delete', true, duration, {
-      bucket: S3_CONFIG.bucket,
+      bucket: S3_CONFIG.BUCKET,
       key: s3Key
     });
 
@@ -328,7 +328,7 @@ const deleteFileFromS3 = async (s3Key) => {
   } catch (error) {
     const duration = Date.now() - startTime;
     requestLogger.s3Operation('delete', false, duration, {
-      bucket: S3_CONFIG.bucket,
+      bucket: S3_CONFIG.BUCKET,
       key: s3Key,
       error: error.message
     });
@@ -350,8 +350,8 @@ const getUploadConfig = () => {
   return {
     maxFileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024,
     allowedMimeTypes: (process.env.ALLOWED_MIME_TYPES || 'image/*,application/pdf,text/*').split(','),
-    bucket: S3_CONFIG.bucket,
-    region: S3_CONFIG.region
+    bucket: S3_CONFIG.BUCKET,
+    region: S3_CONFIG.REGION
   };
 };
 
@@ -365,7 +365,7 @@ const healthCheck = async () => {
   try {
     // Simple HEAD request to bucket to check connectivity
     await s3Client.send(new HeadObjectCommand({
-      Bucket: S3_CONFIG.bucket,
+      Bucket: S3_CONFIG.BUCKET,
       Key: 'health-check-dummy-key' // This key doesn't need to exist
     }));
 
@@ -395,8 +395,8 @@ const healthCheck = async () => {
     healthy: true,
     responseTime: `${duration}ms`,
     service: 's3',
-    bucket: S3_CONFIG.bucket,
-    region: S3_CONFIG.region
+    bucket: S3_CONFIG.BUCKET,
+    region: S3_CONFIG.REGION
   };
 };
 

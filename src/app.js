@@ -8,7 +8,7 @@ const uploadRoutes = require('./routes/upload');
 const healthRoutes = require('./routes/health');
 
 // Import middleware
-const errorHandler = require('./middleware/errorHandler');
+const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 

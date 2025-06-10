@@ -21,10 +21,10 @@ const logger = createLogger();
  */
 router.get('/', async (req, res, next) => {
   const startTime = process.hrtime.bigint();
-  const childLogger = logger.child({ route: 'health' });
+  const routeLogger = createLogger();
 
   try {
-    childLogger.info('health_check_started');
+    routeLogger.info('health_check_started', 'Health check endpoint accessed');
 
     // Context7 Node.js process diagnostics patterns
     const memoryUsage = process.memoryUsage();
@@ -75,11 +75,11 @@ router.get('/', async (req, res, next) => {
       });
       await s3Client.send(bucketCheck);
       s3Status = 'connected';
-      childLogger.info('s3_health_check_success');
+      routeLogger.info('s3_health_check_success', 'S3 connectivity verified');
     } catch (error) {
       s3Status = 'error';
       s3Error = error.message;
-      childLogger.warn('s3_health_check_failed', { error: error.message });
+      routeLogger.warn('s3_health_check_failed', 'S3 connectivity failed', { error: error.message });
     }
 
     // Performance metrics (Context7 hrtime pattern)
@@ -121,7 +121,7 @@ router.get('/', async (req, res, next) => {
       };
     }
 
-    childLogger.info('health_check_completed', {
+    routeLogger.info('health_check_completed', 'Health check completed successfully', {
       status,
       response_time_ms: responseTime,
       s3_status: s3Status
@@ -140,7 +140,7 @@ router.get('/', async (req, res, next) => {
   } catch (error) {
     // Context7 error handling pattern
     error.route = 'health';
-    childLogger.error('health_check_error', {
+    routeLogger.error('health_check_error', 'Health check failed with error', {
       error: error.message,
       stack: error.stack
     });
@@ -155,10 +155,10 @@ router.get('/', async (req, res, next) => {
  * Following Context7 Node.js diagnostic report patterns
  */
 router.get('/diagnostics', async (req, res, next) => {
-  const childLogger = logger.child({ route: 'health/diagnostics' });
+  const routeLogger = createLogger();
 
   try {
-    childLogger.info('diagnostics_check_started');
+    routeLogger.info('diagnostics_check_started', 'Diagnostics check initiated');
 
     // Context7 Node.js diagnostic report pattern
     const diagnosticData = {
@@ -191,7 +191,7 @@ router.get('/diagnostics', async (req, res, next) => {
       }
     };
 
-    childLogger.info('diagnostics_check_completed');
+    routeLogger.info('diagnostics_check_completed', 'Diagnostics check completed successfully');
 
     res.status(200).json({
       success: true,
@@ -204,7 +204,7 @@ router.get('/diagnostics', async (req, res, next) => {
 
   } catch (error) {
     error.route = 'health/diagnostics';
-    childLogger.error('diagnostics_check_error', { error: error.message });
+    routeLogger.error('diagnostics_check_error', 'Diagnostics check failed', { error: error.message });
     next(error);
   }
 });
@@ -216,10 +216,10 @@ router.get('/diagnostics', async (req, res, next) => {
  */
 router.get('/s3', async (req, res, next) => {
   const startTime = process.hrtime.bigint();
-  const childLogger = logger.child({ route: 'health/s3' });
+  const routeLogger = createLogger();
 
   try {
-    childLogger.info('s3_health_check_started');
+    routeLogger.info('s3_health_check_started', 'S3 health check initiated');
 
     // Test S3 connectivity with detailed error context
     const bucketCheck = new HeadBucketCommand({
@@ -230,7 +230,7 @@ router.get('/s3', async (req, res, next) => {
     const endTime = process.hrtime.bigint();
     const responseTime = Number(endTime - startTime) / 1e6;
 
-    childLogger.info('s3_health_check_success', {
+    routeLogger.info('s3_health_check_success', 'S3 bucket connectivity verified', {
       bucket: process.env.AWS_S3_BUCKET,
       response_time_ms: responseTime
     });
@@ -258,7 +258,7 @@ router.get('/s3', async (req, res, next) => {
     const endTime = process.hrtime.bigint();
     const responseTime = Number(endTime - startTime) / 1e6;
 
-    childLogger.error('s3_health_check_failed', {
+    routeLogger.error('s3_health_check_failed', 'S3 connectivity test failed', {
       error: error.message,
       code: error.name,
       response_time_ms: responseTime
