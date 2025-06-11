@@ -179,4 +179,3 @@ Response (200):
 - ✅ File validation and security measures
 - ✅ Production-ready CORS configuration
 
-Built for Charles's file uploader challenge - demonstrating clean Node.js architecture with AWS SDK v3 best practices.
