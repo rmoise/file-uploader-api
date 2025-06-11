@@ -34,11 +34,19 @@ const corsOptions = {
       'https://file-uploader-challenge.vercel.app'
     ];
 
+    // Check exact matches first
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+      return;
     }
+
+    // Allow Vercel preview deployments (pattern: file-uploader-challenge-*.vercel.app)
+    if (origin && origin.match(/^https:\/\/file-uploader-challenge.*\.vercel\.app$/)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

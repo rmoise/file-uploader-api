@@ -21,7 +21,7 @@ services:
       - key: FRONTEND_URL
         value: https://file-uploader-challenge.vercel.app
       - key: CORS_ORIGINS
-        value: http://localhost:5173,https://file-uploader-challenge.vercel.app
+        value: http://localhost:5173,https://file-uploader-challenge.vercel.app,https://file-uploader-challenge-kefnkl8x2-roderick-moises-projects.vercel.app
       - key: MAX_FILE_SIZE
         value: 10485760
       - key: S3_MAX_SOCKETS
