@@ -125,7 +125,7 @@ Response (200):
 ## 🌐 Live Demo
 
 - **API URL**: https://file-uploader-api-7547.onrender.com
-- **Frontend**: https://file-uploader-challenge-kefnkl8x2-roderick-moises-projects.vercel.app
+- **Frontend**: https://file-uploader-challenge.vercel.app
 - **Health Check**: https://file-uploader-api-7547.onrender.com/api/health
 
 ## 📊 Performance
