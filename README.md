@@ -62,21 +62,71 @@ npm start
 
 ### Upload File
 
-```
+```http
 POST /api/upload
 Content-Type: multipart/form-data
+
+Form Data:
+- file: File (required, max 10MB)
+- metadata: JSON string (optional)
+
+Response Success (200):
+{
+  "success": true,
+  "data": {
+    "fileId": "uuid-v4",
+    "fileName": "example.jpg",
+    "fileUrl": "https://file-uploader-bucket-roderick.s3.eu-central-1.amazonaws.com/uploads/uuid-timestamp.jpg",
+    "fileSize": 1024000,
+    "uploadedAt": "2024-01-01T00:00:00.000Z",
+    "s3Key": "uploads/uuid-timestamp.jpg"
+  }
+}
+
+Response Error (400/500):
+{
+  "success": false,
+  "error": {
+    "code": "UPLOAD_FAILED",
+    "message": "File upload failed",
+    "retryable": true
+  }
+}
+```
+
+### Delete File
+
+```http
+DELETE /api/upload/delete/{s3Key}
+
+Response Success (200):
+{
+  "success": true,
+  "message": "File deleted successfully"
+}
 ```
 
 ### Health Check
 
-```
+```http
 GET /api/health
+
+Response (200):
+{
+  "status": "healthy",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "services": {
+    "s3": "connected",
+    "server": "running"
+  }
+}
 ```
 
 ## 🌐 Live Demo
 
-- **API URL**: https://file-uploader-api-xxxx.onrender.com
-- **Frontend**: https://file-uploader-challenge.vercel.app
+- **API URL**: https://file-uploader-api-7547.onrender.com
+- **Frontend**: https://file-uploader-challenge-kefnkl8x2-roderick-moises-projects.vercel.app
+- **Health Check**: https://file-uploader-api-7547.onrender.com/api/health
 
 ## 📊 Performance
 
@@ -92,6 +142,25 @@ GET /api/health
 - S3 bucket security with least privilege
 - CORS configuration
 
+## 🚀 Deployment Instructions
+
+### Render FREE Deployment
+
+1. Fork this repository
+2. Connect to Render.com
+3. Set environment variables in dashboard:
+   - `AWS_ACCESS_KEY_ID`
+   - `AWS_SECRET_ACCESS_KEY`
+   - `AWS_S3_BUCKET`
+   - `AWS_REGION`
+4. Deploy automatically from GitHub
+
+### CORS Configuration
+
+- Supports Vercel preview deployments via regex pattern
+- Configurable origins via `CORS_ORIGINS` environment variable
+- Preflight request handling included
+
 ## 📝 Challenge Notes
 
 **Time Investment**: ~2.5 hours
@@ -100,5 +169,14 @@ GET /api/health
 - Used Render free tier (30s cold start acceptable for demo)
 - Focused on core functionality over advanced monitoring
 - Structured for easy scaling and production enhancement
+
+**Production Features**:
+
+- ✅ S3 streaming uploads with connection pooling
+- ✅ Queue management with 2 concurrent upload limit
+- ✅ Retry logic with error classification
+- ✅ Real-time progress tracking
+- ✅ File validation and security measures
+- ✅ Production-ready CORS configuration
 
 Built for Charles's file uploader challenge - demonstrating clean Node.js architecture with AWS SDK v3 best practices.
