@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: file-uploader-api
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: AWS_ACCESS_KEY_ID
+        sync: false # Set in Render dashboard for security
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false # Set in Render dashboard for security
+      - key: AWS_REGION
+        value: eu-central-1
+      - key: AWS_S3_BUCKET
+        sync: false # Set in Render dashboard for security
+      - key: FRONTEND_URL
+        value: https://file-uploader-challenge.vercel.app
+      - key: CORS_ORIGINS
+        value: http://localhost:5173,https://file-uploader-challenge.vercel.app,https://file-uploader-challenge-kefnkl8x2-roderick-moises-projects.vercel.app
+      - key: MAX_FILE_SIZE
+        value: 10485760

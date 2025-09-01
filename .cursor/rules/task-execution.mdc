@@ -1,0 +1,654 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# File Uploader API - Task Execution Plan (Enhanced)
+
+## 🎯 **PROJECT OVERVIEW**
+
+Build Node.js/Express backend API with S3-compatible storage integration using AWS SDK v3 best practices, featuring streaming uploads, connection pooling, and optimized error handling.
+
+## ⏱️ **TASK BREAKDOWN** (Follow Sequential Order)
+
+### **PHASE 1: SETUP & FOUNDATION** (0-30 minutes)
+
+#### **Task 1.1: Package.json Configuration & Dependencies** (8 minutes) ✅ COMPLETE
+
+- [x] Update package.json with proper scripts and dependencies
+- [x] Install AWS SDK v3 packages: `@aws-sdk/client-s3`, `@aws-sdk/lib-storage`
+- [x] Install HTTP handler: `@smithy/node-http-handler`
+- [x] Install core packages: `express`, `cors`, `helmet`, `morgan`, `dotenv`, `multer`, `uuid`
+- [x] Configure nodemon for development
+
+#### **Task 1.2: Environment Configuration** (8 minutes) ✅ COMPLETE
+
+- [x] Create comprehensive `.env.example` with AWS SDK v3 variables
+- [x] Set up development `.env` with S3 configuration
+- [x] Configure performance environment variables (maxSockets, timeouts)
+- [x] Document multi-provider setup (AWS S3, DO Spaces)
+
+#### **Task 1.3: GitHub Repository Setup** (5 minutes) ✅ COMPLETE
+
+- [x] Initialize git repository and create .gitignore
+- [x] Create GitHub repository for the project
+- [x] Set up proper branch structure (main branch)
+- [x] Create comprehensive README.md with API documentation
+- [x] Add environment variables template (.env.example)
+
+#### **Task 1.4: Basic Express App Setup** (8 minutes) ✅ COMPLETE
+
+- [x] Create `src/server.js` with graceful shutdown
+- [x] Create `src/app.js` with middleware chain
+- [x] Configure CORS with environment-based origins
+- [x] Set up Helmet security headers
+
+#### **Task 1.5: S3 Client Configuration with Connection Pooling** (6 minutes) ✅ COMPLETE
+
+- [x] Create `src/config/s3Config.js` with AWS SDK v3
+- [x] Implement NodeHttpHandler with optimized settings
+- [x] Configure connection pooling (maxSockets, keepAlive)
+- [x] Set up timeout configurations
+
+**⏱️ CHECKPOINT 1 (35 minutes): ✅ COMPLETE - Optimized foundation with S3 connection pooling + GitHub setup**
+
+---
+
+### **PHASE 2: CORE SERVICES & UTILITIES** (30-60 minutes)
+
+#### **Task 2.1: Enhanced File Validation Utilities** (8 minutes) ✅ COMPLETE
+
+- [x] Create `src/utils/fileValidator.js` with stream validation
+- [x] Implement MIME type validation using file-type library
+- [x] Add file size and extension double-checking
+- [x] Create magic number validation for security
+
+#### **Task 2.2: Structured Logging System** (5 minutes) ✅ COMPLETE
+
+- [x] Create `src/utils/logger.js` with request context
+- [x] Implement structured logging for upload events
+- [x] Add performance metrics logging
+- [x] Configure log levels by environment
+
+#### **Task 2.3: S3 Service with Streaming Uploads** (12 minutes) ✅ COMPLETE
+
+- [x] Create `src/services/s3Service.js` using @aws-sdk/lib-storage
+- [x] Implement streaming upload with Upload class
+- [x] Add progress tracking via httpUploadProgress events
+- [x] Configure multipart upload settings (queueSize, partSize)
+
+#### **Task 2.4: Upload Business Logic Service** (5 minutes) ✅ COMPLETE
+
+- [x] Create `src/services/uploadService.js` with retry logic
+- [x] Implement error classification (retryable vs permanent)
+- [x] Add file metadata generation
+- [x] Create unique file naming with UUID + timestamp
+
+**⏱️ CHECKPOINT 2 (60 minutes): ✅ COMPLETE - Core services with streaming capabilities and Context7 validation**
+
+---
+
+### **PHASE 3: API ROUTES & MIDDLEWARE** (60-90 minutes)
+
+#### **Task 3.1: Enhanced Upload Middleware** (8 minutes) ✅ COMPLETE
+
+- [x] Create `src/middleware/upload.js` with Multer configuration
+- [x] Configure memory storage for streaming to S3
+- [x] Add file filtering and size limits
+- [x] Implement stream error handling
+
+#### **Task 3.2: Error Handling Middleware** (5 minutes) ✅ COMPLETE
+
+- [x] Create `src/middleware/errorHandler.js` with error classification
+- [x] Implement retry-friendly error responses
+- [x] Add request ID tracking
+- [x] Configure error logging with context
+
+#### **Task 3.3: Upload Route with Progress Tracking** (12 minutes) ✅ COMPLETE
+
+- [x] Create `src/routes/upload.js` with streaming endpoint
+- [x] Implement real-time progress tracking
+- [x] Add comprehensive error handling
+- [x] Configure response formatting for frontend
+
+#### **Task 3.4: Health Check Route with S3 Status** (5 minutes) ✅ COMPLETE
+
+- [x] Create `src/routes/health.js` with S3 connectivity check
+- [x] Add connection pool status reporting
+- [x] Implement performance metrics endpoint
+- [x] Add service dependency checks
+
+**⏱️ CHECKPOINT 3 (90 minutes): ✅ COMPLETE - Complete API with streaming uploads and Context7 validation**
+
+---
+
+### **PHASE 4: FRONTEND INTEGRATION & TESTING** (90-120 minutes)
+
+#### **Task 4.1: Update Frontend Upload Service** (10 minutes) ✅ COMPLETE
+
+- [x] Enhance frontend uploadService.ts with error handling
+- [x] Add retry logic with exponential backoff
+- [x] Implement progress tracking integration
+- [x] Configure timeout and error classification
+
+#### **Task 4.2: CORS Configuration for Live Frontend** (5 minutes) ✅ COMPLETE
+
+- [x] Configure CORS for Vercel deployment
+- [x] Add preflight request handling
+- [x] Set up credential headers if needed
+- [x] Test cross-origin requests
+
+#### **Task 4.3: Integration Testing** (10 minutes) ✅ COMPLETE
+
+- [x] Test single file upload with progress
+- [x] Test multiple concurrent uploads (queue integration)
+- [x] Verify error handling and retry logic
+- [x] Test different file types and sizes
+
+#### **Task 4.4: Performance Testing** (5 minutes) ✅ COMPLETE
+
+- [x] Test upload throughput with large files
+- [x] Verify connection pooling efficiency
+- [x] Monitor memory usage during uploads
+- [x] Test concurrent upload limits
+
+**⏱️ CHECKPOINT 4 (120 minutes): ✅ COMPLETE - Full integration tested and optimized**
+
+---
+
+### **PHASE 5: DEPLOYMENT & FINAL VERIFICATION** (120-150 minutes)
+
+#### **Task 5.1: Environment Variables Setup** (5 minutes) ✅ COMPLETE
+
+- [x] Configure Render (FREE) environment variables
+- [x] Set up AWS S3 credentials securely
+- [x] Configure CORS origins for production
+- [x] Set performance tuning variables
+
+#### **Task 5.2: Render FREE Deployment** (10 minutes) ✅ COMPLETE
+
+- [x] Deploy to Render with free tier settings
+- [x] Configure health check endpoints
+- [x] Set up logging and monitoring
+- [x] Verify S3 connectivity in production
+- [x] Test cold start behavior (30s wake time is acceptable for demo)
+
+#### **Task 5.3: Production Testing** (10 minutes) ✅ COMPLETE
+
+- [x] Test live API endpoints
+- [x] Verify frontend integration with live backend
+- [x] Test upload queue with production S3
+- [x] Monitor performance metrics
+
+#### **Task 5.4: GitHub Final Push & Documentation** (8 minutes)
+
+- [ ] Commit all final changes with descriptive messages
+- [ ] Push to GitHub main branch
+- [ ] Update README.md with live API URL and deployment instructions
+- [ ] Create API documentation with examples
+- [ ] Document environment variables and setup process
+- [ ] Add troubleshooting guide
+
+**⏱️ FINAL CHECKPOINT (153 minutes): Production-ready backend deployed + GitHub repository ready**
+
+---
+
+## 🔧 **TECHNICAL IMPLEMENTATION NOTES**
+
+### **AWS SDK v3 Best Practices**
+
+```javascript
+// S3 Client with optimized configuration
+const s3Client = new S3({
+  requestHandler: new NodeHttpHandler({
+    httpsAgent: new https.Agent({
+      keepAlive: true,
+      maxSockets: parseInt(process.env.S3_MAX_SOCKETS) || 50,
+    }),
+    requestTimeout: parseInt(process.env.S3_REQUEST_TIMEOUT) || 30000,
+    connectionTimeout: parseInt(process.env.S3_CONNECTION_TIMEOUT) || 6000,
+  }),
+});
+
+// Streaming upload with progress
+const upload = new Upload({
+  client: s3Client,
+  params: { Bucket, Key, Body: fileStream },
+  queueSize: 4,
+  partSize: 1024 * 1024 * 5, // 5MB parts
+  leavePartsOnError: false,
+});
+```
+
+### **Error Classification Pattern**
+
+```javascript
+const classifyError = (error) => {
+  const nonRetryableErrors = [
+    "ValidationException",
+    "AccessDenied",
+    "InvalidBucketName",
+    "InvalidArgument",
+  ];
+
+  return {
+    retryable: !nonRetryableErrors.includes(error.name),
+    code: error.name || "UPLOAD_FAILED",
+    message: error.message,
+  };
+};
+```
+
+### **Progress Tracking Integration**
+
+```javascript
+upload.on("httpUploadProgress", (progress) => {
+  // Emit progress to frontend via SSE or WebSocket
+  const percentage = Math.round((progress.loaded / progress.total) * 100);
+  logger.info("upload_progress", {
+    fileId,
+    loaded: progress.loaded,
+    total: progress.total,
+    progress: percentage,
+  });
+});
+```
+
+### **Render FREE Deployment Configuration**
+
+#### **render.yaml Configuration**
+
+```yaml
+services:
+  - type: web
+    name: file-uploader-api
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: AWS_ACCESS_KEY_ID
+        sync: false  # Set in Render dashboard
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false  # Set in Render dashboard
+      - key: AWS_REGION
+        value: us-east-1
+      - key: AWS_S3_BUCKET
+        sync: false  # Set in Render dashboard
+      - key: FRONTEND_URL
+        value: https://file-uploader-challenge.vercel.app
+      - key: CORS_ORIGINS
+        value: http://localhost:5173,https://file-uploader-challenge.vercel.app
+      - key: MAX_FILE_SIZE
+        value: 10485760
+      - key: S3_MAX_SOCKETS
+        value: 50
+```
+
+#### **Render Free Tier Benefits**
+
+- ✅ **100% FREE** - 750 hours/month (perfect for demo)
+- ✅ **Auto-deploy** from GitHub commits
+- ✅ **SSL certificates** included
+- ✅ **Environment variables** secure storage
+- ⚠️ **Cold starts** - 30s delay after 15min inactivity (acceptable for demo)
+- ✅ **Custom domains** supported
+- ✅ **Logs & monitoring** included
+
+#### **Deployment Steps**
+
+```bash
+# 1. Push to GitHub
+git add .
+git commit -m "feat: complete file uploader API"
+git push origin main
+
+# 2. Connect to Render
+# - Go to render.com
+# - Connect GitHub repo
+# - Select "Web Service"
+# - Use render.yaml config
+
+# 3. Set secret environment variables in Render dashboard:
+# - AWS_ACCESS_KEY_ID
+# - AWS_SECRET_ACCESS_KEY
+# - AWS_S3_BUCKET
+
+# 4. Deploy automatically
+# Render will build and deploy on every push
+```
+
+#### **Production URL Format**
+
+```
+https://file-uploader-api-xxxx.onrender.com
+```
+
+**Note**: Cold start behavior is perfect for coding challenge demos - shows the app can handle real-world scenarios where traffic varies.
+
+### **GitHub Repository Setup & Best Practices**
+
+#### **.gitignore Configuration**
+
+```bash
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+node_modules/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+```
+
+#### **README.md Template**
+
+```markdown
+# File Uploader API
+
+Node.js/Express backend API with S3-compatible storage integration for file uploads with queue management.
+
+## 🚀 Features
+
+- **Streaming file uploads** with real-time progress tracking
+- **Queue management** - limits concurrent uploads to 2-3 max
+- **S3 integration** using AWS SDK v3 with connection pooling
+- **Retry-friendly error handling**
+- **File validation** with security measures
+- **CORS configuration** for cross-origin requests
+
+## 🛠️ Tech Stack
+
+- **Runtime**: Node.js 18+
+- **Framework**: Express.js
+- **Storage**: AWS S3 (or compatible: DO Spaces, Backblaze)
+- **AWS SDK**: @aws-sdk/client-s3, @aws-sdk/lib-storage
+- **File Handling**: Multer middleware
+
+## 🔧 Environment Variables
+
+```bash
+# Server
+PORT=3001
+NODE_ENV=development
+
+# AWS S3
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=your-bucket-name
+
+# CORS
+FRONTEND_URL=https://your-frontend-url.vercel.app
+CORS_ORIGINS=http://localhost:5173,https://your-frontend-url.vercel.app
+
+# Performance
+MAX_FILE_SIZE=10485760
+S3_MAX_SOCKETS=50
+```
+
+## 🚀 Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Copy environment variables
+cp .env.example .env
+# Edit .env with your values
+
+# Start development server
+npm run dev
+
+# Start production server
+npm start
+```
+
+## 📡 API Endpoints
+
+### Upload File
+```
+POST /api/upload
+Content-Type: multipart/form-data
+```
+
+### Health Check
+```
+GET /api/health
+```
+
+## 🌐 Live Demo
+
+- **API URL**: https://file-uploader-api-xxxx.onrender.com
+- **Frontend**: https://file-uploader-challenge.vercel.app
+
+## 📊 Performance
+
+- Supports 10+ concurrent uploads efficiently
+- Handles files up to 10MB
+- Memory-efficient streaming (no full buffering)
+- Connection pooling for optimal S3 performance
+
+## 🔒 Security
+
+- File type and content validation
+- Input sanitization
+- S3 bucket security with least privilege
+- CORS configuration
+
+## 📝 Challenge Notes
+
+**Time Investment**: ~2.5 hours
+**Trade-offs Made**:
+- Used Render free tier (30s cold start acceptable for demo)
+- Focused on core functionality over advanced monitoring
+- Structured for easy scaling and production enhancement
+
+Built for Charles's file uploader challenge - demonstrating clean Node.js architecture with AWS SDK v3 best practices.
+```
+
+#### **Commit Message Strategy**
+
+```bash
+# Initial setup
+git commit -m "feat: initial project setup with package.json and dependencies"
+
+# Core implementation
+git commit -m "feat: implement S3 streaming upload with progress tracking"
+git commit -m "feat: add file validation and error handling middleware"
+git commit -m "feat: create upload and health check API routes"
+
+# Integration
+git commit -m "feat: configure CORS for frontend integration"
+git commit -m "feat: add comprehensive error classification for retries"
+
+# Deployment
+git commit -m "feat: add Render deployment configuration"
+git commit -m "docs: update README with API documentation and setup"
+
+# Final
+git commit -m "feat: complete file uploader API with S3 integration"
+```
+
+#### **Repository Structure for Charles**
+
+```
+file-uploader-api/
+├── src/
+│   ├── config/
+│   │   └── s3Config.js
+│   ├── middleware/
+│   │   ├── upload.js
+│   │   └── errorHandler.js
+│   ├── routes/
+│   │   ├── upload.js
+│   │   └── health.js
+│   ├── services/
+│   │   ├── s3Service.js
+│   │   └── uploadService.js
+│   ├── utils/
+│   │   ├── fileValidator.js
+│   │   └── logger.js
+│   ├── app.js
+│   └── server.js
+├── .env.example
+├── .gitignore
+├── package.json
+├── README.md
+└── render.yaml
+```
+
+## 🚨 **EMERGENCY PROTOCOLS (Enhanced)**
+
+### **If Behind Schedule:**
+
+- [ ] **20+ minutes behind**: Skip Task 2.2 (structured logging), use console.log
+- [ ] **30+ minutes behind**: Use basic error handling, skip error classification
+- [ ] **40+ minutes behind**: Skip performance testing, focus on basic functionality
+- [ ] **50+ minutes behind**: Deploy with minimal testing, document known issues
+
+### **If Ahead of Schedule:**
+
+- [ ] Add WebSocket support for real-time progress
+- [ ] Implement advanced file validation (virus scanning)
+- [ ] Add compression middleware for API responses
+- [ ] Create upload analytics and metrics dashboard
+
+## ✅ **SUCCESS CRITERIA CHECKLIST (Enhanced)**
+
+### **Functional Requirements:**
+
+- [ ] Streaming file uploads with real-time progress tracking
+- [ ] S3 integration using AWS SDK v3 with connection pooling
+- [ ] Frontend integration with retry-friendly error responses
+- [ ] File validation with security measures
+- [ ] CORS configuration for cross-origin requests
+
+### **Performance Requirements:**
+
+- [ ] Handle 10+ concurrent uploads efficiently
+- [ ] Support files up to 10MB without memory issues
+- [ ] Connection reuse to minimize S3 API costs
+- [ ] Progress reporting within 100ms accuracy
+- [ ] Memory-efficient streaming (no full buffering)
+
+### **Technical Requirements:**
+
+- [ ] AWS SDK v3 with @aws-sdk/lib-storage for multipart uploads
+- [ ] NodeHttpHandler with optimized connection settings
+- [ ] Structured error handling with retry classification
+- [ ] Environment-based configuration
+- [ ] Production deployment with health checks
+
+### **Security Requirements:**
+
+- [ ] File type and content validation during streaming
+- [ ] S3 bucket security with least privilege access
+- [ ] Input sanitization and XSS prevention
+- [ ] Secure credential management
+
+### **Deliverables:**
+
+- [ ] Live API URL (Render FREE tier - perfect for demo)
+- [ ] GitHub repository with clean commits
+- [ ] Updated frontend integration
+- [ ] Environment variables documentation
+- [ ] Performance optimization report
+- [ ] Render deployment configuration (render.yaml)
+
+## 🎯 **TASK EXECUTION RULES (Enhanced)**
+
+1. **Follow Context7 best practices** - Use AWS SDK v3 patterns from documentation
+2. **Streaming first** - Never buffer entire files in memory
+3. **Connection pooling** - Reuse S3 client instances and connections
+4. **Error classification** - Distinguish retryable vs permanent errors
+5. **Progress tracking** - Real-time feedback for frontend integration
+6. **Performance monitoring** - Track metrics from the start
+7. **Security validation** - Validate files during streaming, not after
+
+## 📋 **PROGRESS TRACKING (Enhanced)**
+
+**Current Phase:** Phase 4 - Frontend Integration & Testing
+**Time Elapsed:** 90 minutes
+**Tasks Completed:** 9/32 (Phases 1-3 ✅ COMPLETE)
+**Emergency Protocol Active:** None (on schedule!)
+
+**S3 Configuration Status:** ✅ Production-ready with connection pooling
+**Connection Pool Status:** ✅ NodeHttpHandler optimized (maxSockets: 50)
+**API Routes Status:** ✅ Upload and Health routes with Context7 validation
+**Frontend Integration Status:** ✅ CORS configured for Vercel + localhost
+**API Base URL (Production):** TBD (Render deployment in Phase 5)
+
+## 🔧 **IMPLEMENTATION NOTES**
+
+### **Memory Management**
+
+- Use streams throughout the pipeline
+- Configure appropriate buffer sizes
+- Monitor memory usage during development
+- Clean up resources in error cases
+
+### **Connection Optimization**
+
+- Reuse S3 client instances
+- Configure appropriate maxSockets
+- Monitor connection pool utilization
+- Handle connection timeouts gracefully
+
+### **Error Recovery**
+
+- Classify errors for retry logic
+- Provide detailed error context
+- Log errors with request correlation
+- Return retry-friendly responses to frontend
+
+**Ready to implement with optimized S3 patterns! 🚀**

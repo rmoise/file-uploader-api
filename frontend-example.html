@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct S3 Upload Example</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .upload-container {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background: #f9f9f9;
+        }
+        .upload-container.dragover {
+            border-color: #4CAF50;
+            background: #f0f8f0;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .btn {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .btn:hover {
+            background: #45a049;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .progress {
+            margin-top: 20px;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            display: none;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #4CAF50;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+        .file-info {
+            margin: 20px 0;
+            text-align: left;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .file-list {
+            margin-top: 30px;
+        }
+        .file-item {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Direct S3 Upload Demo</h1>
+    <p>Files upload directly to S3 without going through the backend server!</p>
+    
+    <div class="upload-container" id="dropZone">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        <p>Drag & drop files here or click to browse</p>
+        <p style="font-size: 14px; color: #666;">Maximum file size: 10MB</p>
+        <input type="file" id="fileInput" multiple>
+        <button class="btn" onclick="document.getElementById('fileInput').click()">Choose Files</button>
+    </div>
+
+    <div class="file-info" id="fileInfo">
+        <strong>Selected File:</strong>
+        <div id="fileName"></div>
+        <div id="fileSize"></div>
+        <button class="btn" id="uploadBtn" onclick="uploadFile()">Upload to S3</button>
+    </div>
+
+    <div class="progress" id="progress">
+        <div class="progress-bar" id="progressBar">0%</div>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="file-list" id="fileList">
+        <h3>Uploaded Files</h3>
+        <div id="uploadedFiles"></div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_URL = 'http://localhost:3001'; // Change this to your API URL
+        
+        let selectedFile = null;
+        const uploadedFiles = [];
+
+        // Drag and drop
+        const dropZone = document.getElementById('dropZone');
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        // File input change
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            selectedFile = file;
+            
+            // Display file info
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = `Size: ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+            document.getElementById('fileInfo').style.display = 'block';
+            
+            // Check file size
+            if (file.size > 10 * 1024 * 1024) {
+                showStatus('File size exceeds 10MB limit', 'error');
+                document.getElementById('uploadBtn').disabled = true;
+            } else {
+                document.getElementById('uploadBtn').disabled = false;
+                hideStatus();
+            }
+        }
+
+        async function uploadFile() {
+            if (!selectedFile) return;
+
+            const uploadBtn = document.getElementById('uploadBtn');
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Uploading...';
+            
+            document.getElementById('progress').style.display = 'block';
+            hideStatus();
+
+            try {
+                // Step 1: Get presigned URL from backend
+                const presignedResponse = await fetch(`${API_URL}/api/upload/presigned-url`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        filename: selectedFile.name,
+                        contentType: selectedFile.type || 'application/octet-stream',
+                        fileSize: selectedFile.size
+                    })
+                });
+
+                if (!presignedResponse.ok) {
+                    throw new Error('Failed to get upload URL');
+                }
+
+                const { data } = await presignedResponse.json();
+
+                // Step 2: Upload directly to S3 using presigned URL
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded / e.total) * 100);
+                        updateProgress(percentComplete);
+                    }
+                });
+
+                xhr.addEventListener('load', async () => {
+                    if (xhr.status === 200) {
+                        // Step 3: Confirm upload with backend (optional)
+                        await fetch(`${API_URL}/api/upload/confirm`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                s3Key: data.s3Key,
+                                fileId: data.fileId,
+                                fileName: selectedFile.name,
+                                fileSize: selectedFile.size
+                            })
+                        });
+
+                        // Success!
+                        showStatus('File uploaded successfully!', 'success');
+                        addUploadedFile({
+                            name: selectedFile.name,
+                            url: data.fileUrl,
+                            s3Key: data.s3Key,
+                            size: selectedFile.size
+                        });
+                        
+                        // Reset
+                        selectedFile = null;
+                        document.getElementById('fileInfo').style.display = 'none';
+                        document.getElementById('fileInput').value = '';
+                        updateProgress(100);
+                        
+                        setTimeout(() => {
+                            document.getElementById('progress').style.display = 'none';
+                        }, 1000);
+                    } else {
+                        throw new Error('Upload failed');
+                    }
+                });
+
+                xhr.addEventListener('error', () => {
+                    throw new Error('Upload failed');
+                });
+
+                xhr.open('PUT', data.presignedUrl);
+                xhr.setRequestHeader('Content-Type', selectedFile.type || 'application/octet-stream');
+                xhr.send(selectedFile);
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                showStatus('Upload failed: ' + error.message, 'error');
+                document.getElementById('progress').style.display = 'none';
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload to S3';
+            }
+        }
+
+        function updateProgress(percent) {
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.width = percent + '%';
+            progressBar.textContent = percent + '%';
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + type;
+            status.style.display = 'block';
+        }
+
+        function hideStatus() {
+            document.getElementById('status').style.display = 'none';
+        }
+
+        function addUploadedFile(file) {
+            uploadedFiles.push(file);
+            renderUploadedFiles();
+        }
+
+        function renderUploadedFiles() {
+            const container = document.getElementById('uploadedFiles');
+            
+            if (uploadedFiles.length === 0) {
+                container.innerHTML = '<p style="color: #666;">No files uploaded yet</p>';
+                return;
+            }
+
+            container.innerHTML = uploadedFiles.map(file => `
+                <div class="file-item">
+                    <div>
+                        <strong>${file.name}</strong>
+                        <div style="font-size: 14px; color: #666;">
+                            ${(file.size / 1024 / 1024).toFixed(2)} MB
+                        </div>
+                    </div>
+                    <div>
+                        <a href="${file.url}" target="_blank" class="btn" style="text-decoration: none; padding: 5px 15px; font-size: 14px;">View</a>
+                        <button class="btn" style="background: #f44336; padding: 5px 15px; font-size: 14px;" onclick="deleteFile('${file.s3Key}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function deleteFile(s3Key) {
+            if (!confirm('Are you sure you want to delete this file?')) return;
+
+            try {
+                const response = await fetch(`${API_URL}/api/upload/${s3Key}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    // Remove from list
+                    const index = uploadedFiles.findIndex(f => f.s3Key === s3Key);
+                    if (index > -1) {
+                        uploadedFiles.splice(index, 1);
+                        renderUploadedFiles();
+                    }
+                    showStatus('File deleted successfully', 'success');
+                } else {
+                    throw new Error('Delete failed');
+                }
+            } catch (error) {
+                showStatus('Failed to delete file', 'error');
+            }
+        }
+
+        // Initial render
+        renderUploadedFiles();
+    </script>
+</body>
+</html>
