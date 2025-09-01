@@ -1,14 +1,14 @@
 {
   "version": 2,
+  "buildCommand": "echo 'No build required'",
+  "outputDirectory": ".",
+  "installCommand": "npm install",
   "rewrites": [
     {
       "source": "/(.*)",
       "destination": "/api"
     }
   ],
-  "env": {
-    "NODE_ENV": "production"
-  },
   "functions": {
     "api/index.js": {
       "maxDuration": 30
